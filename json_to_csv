@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>JSON to CSV Conversion</title>
+  <style>
+    #csv-output {
+      width: 100%;
+      height: 200px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>JSON to CSV Conversion</h1>
+    <div>
+    This was created because downloading all content and using find and replace causes a potential risk where content with no changes will be part of the update. Additionally, the maximum field limit in salesforce exceeds Excel and Google Sheet's limit.
+<br>
+<ol>
+  <li>Search for the search string</li>
+    <li>Replace the search string with the replacement</li>
+    <li>Only save changed rows into a CSV file</li>
+    <li>Allows you to use dataloader to update content that was changed.</li>
+      </ol>
+    <br>
+    Possible issues: content that contains special charcters such as accent letters may break the delimiter resulting in more columns than expected. 
+  </div>
+  <ol>
+    <li>Use Salesforce inspector and export the following columns:
+      <ul>
+        <li>id</li>
+        <li>Simpplr__Text_Intro__c</li>
+        <li>Simpplr__Text_Main__c</li>
+        <li>Simpplr__Text_Main_Continued__c</li>
+      </ul>
+    </li>
+    <li>Or copy the following query and use Salesforce Inspector <code>Select id, Simpplr__title__c, Simpplr__Text_Intro__c, Simpplr__Text_Main_Continued__c, Simpplr__Text_Main__c
+from Simpplr__Simpplr_Content__c
+      where Simpplr__Title__c != ''</code>
+    <li>Export by clicking on "Copy(JSON)".</li>
+    <li>Open notepad or notepad++ -> paste the file -> save as export.json</li>
+    <li>Use the tool below. Click on the download link and save the file</li>
+    <li>Download an open the file using a text editor (DO NOT use Excel). Or copy the text in the text box.</li>
+    <li>Action = "Update", Object = Simpplr__Simpplr_Content"</li>
+<li>paste the downloaded contents in the data box and make sure "CSV" is selected</li>
+  <input type="file" id="json-file-input" accept=".json">
+  <br>
+  <label for="json-text-input">Paste JSON:</label>
+  <br>
+  <textarea id="json-text-input" rows="10" cols="50" placeholder="Paste JSON here"></textarea>
+  <br>
+  <label for="search-string-input">Search String:</label>
+  <input type="text" id="search-string-input" placeholder="Enter search string">
+  <br>
+  <label for="replace-string-input">Replace String:</label>
+  <input type="text" id="replace-string-input" placeholder="Enter replace string">
+  <br>
+  <button onclick="processJson()">Process JSON</button>
+  <br>
+  <br>
+  <div id="status"></div>
+  <textarea id="csv-output" readonly></textarea>
+
+  <script>
+ function processJson() {
+      const inputFile = document.getElementById("json-file-input").files[0];
+      const jsonText = document.getElementById("json-text-input").value;
+      let searchString = document.getElementById("search-string-input").value;
+      let replaceString = document.getElementById("replace-string-input").value;
+      console.log("Search string: " + searchString);
+      console.log("Replace string: " + replaceString);
+
+      let inputJson;
+      if (inputFile) {
+        const reader = new FileReader();
+        reader.readAsText(inputFile);
+        reader.onload = function () {
+          inputJson = JSON.parse(reader.result);
+          processJsonData(inputJson, searchString, replaceString);
+        };
+      } else if (jsonText) {
+        inputJson = JSON.parse(jsonText);
+        processJsonData(inputJson, searchString, replaceString);
+      } else {
+        console.log("No JSON data provided.");
+      }
+    }
+
+    function processJsonData(inputJson, searchString, replaceString) {
+      const columnNames = Object.keys(inputJson[0]).filter(columnName => columnName !== "attributes");
+      const results = [columnNames];
+      let introTextChangeCount = 0;
+      let mainTextChangeCount = 0;
+      let mainContTextChangeCount = 0;
+
+      inputJson.forEach((row) => {
+        let columns = [];
+        let changed = false;
+
+        columnNames.forEach((columnName) => {
+          let columnValue = row[columnName];
+
+          if (typeof columnValue === "string" && columnValue.includes(searchString)) {
+            if (columnName === "Simpplr__Text_Intro__c") {
+              console.log("FOUND! in Intro Text:\n" + columnValue);
+              introTextChangeCount++;
+              columnValue = columnValue.replaceAll(searchString, replaceString);
+              changed = true;
+            } else if (columnName === "Simpplr__Text_Main__c") {
+              console.log("FOUND! in Main Text:\n" + columnValue);
+              mainTextChangeCount++;
+              columnValue = columnValue.replaceAll(searchString, replaceString);
+              changed = true;
+            } else if (columnName === "Simpplr__Text_Main_Continued__c") {
+              console.log("FOUND! in Main Continued Text:\n" + columnValue);
+              mainContTextChangeCount++;
+              columnValue = columnValue.replaceAll(searchString, replaceString);
+              changed = true;
+            }
+          } else if (columnValue !== null) {
+            console.log("Search string not found in ID: " + row["Id"]);
+          }
+
+          columns.push(`"${columnValue !== null ? columnValue.replace(/"/g, '""') : ""}"`);
+        });
+
+        if (changed) {
+          results.push(columns);
+        }
+      });
+
+      const csvContent = results.map(row => row.join(",")).join("\n");
+      document.getElementById("csv-output").value = csvContent;
+
+      document.getElementById("status").innerHTML = "Total Intro Text Changed: " + introTextChangeCount + "<br>" +
+        "Total Main Text Changed: " + mainTextChangeCount + "<br>" +
+        "Total Main Continued Text Changed: " + mainContTextChangeCount;
+    }
+  </script>
+</body>
+</html>
